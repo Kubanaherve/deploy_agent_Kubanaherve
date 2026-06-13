@@ -15,3 +15,10 @@ else
   echo "⚠ ️ Warning: Python3 is not installe. Please run " pip install python3 " "
 fi
 
+
+echo "📁 Creating project structure..."
+
+mkdir -p "$BASE_DIR/Helpers"
+mkdir -p "$BASE_DIR/reports"
+
+echo "✔ Project directories created at $BASE_DIR"
