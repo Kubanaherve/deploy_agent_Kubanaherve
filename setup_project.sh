@@ -281,10 +281,14 @@ ok "Project successfully generated"
 echo ""
 echo -e "${GREEN}SYSTEM READY 🚀${NC}"
 echo ""
-echo "Next steps:"
+echo "Next steps: Please run the following lines;"
 echo "cd $BASE_DIR"
 echo "python3 attendance_checker.py"
 
 
-echo "Creaated & Designed by  Herve Friend KUBANA 🎊"
+echo ""
+echo ""
 
+run "=============================================="
+run "Creaated & Designed by  Herve Friend KUBANA 🎊"
+run "=============================================="
