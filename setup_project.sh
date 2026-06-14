@@ -134,3 +134,9 @@ echo "✅ Setup completed successfully."
 echo "📁 Project created at: $BASE_DIR"
 echo "👉 You can now navigate into the project directory."
 
+
+echo "🚀 To run the application:"
+echo "cd $BASE_DIR && python3 attendance_checker.py"
+echo ""
+echo "⚡ System ready."
+
