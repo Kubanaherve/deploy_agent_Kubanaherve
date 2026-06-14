@@ -1,32 +1,27 @@
 #!/bin/bash
 
 # =========================
-# COLORS (STRICT UI SYSTEM)
+# COLORS
 # =========================
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 YELLOW="\033[1;33m"
 BLUE="\033[0;34m"
+CYAN="\033[0;36m"
 NC="\033[0m"
 
-# =========================
-# UI FUNCTIONS
-# =========================
-error() {
-    echo ""
-    echo -e "${RED}❌ ERROR: $1${NC}"
-    echo -e "${RED}→ Problem: $2${NC}"
-    echo -e "${RED}→ Fix: $3${NC}"
-    echo ""
-    exit 1
+step() {
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}▶ $1${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 }
 
-success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
+ok() { echo -e "${GREEN}✔ $1${NC}"; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
+fail() { echo -e "${RED}✖ $1${NC}"; }
 
-info() {
-    echo -e "${BLUE}ℹ $1${NC}"
+run() {
+    echo -e "${CYAN}⏳ $1...${NC}"
 }
 
 # =========================
@@ -36,80 +31,71 @@ echo ""
 echo -e "${BLUE}======================================${NC}"
 echo -e "${BLUE}  ATTENDANCE TRACKER BOOTSTRAPPER    ${NC}"
 echo -e "${BLUE}======================================${NC}"
-echo ""
 
 # =========================
-# INPUT
+# INPUT PHASE
 # =========================
-read -p "Enter project suffix: " PROJECT_NAME
+step "PROJECT INITIALIZATION"
 
-if [[ -z "$PROJECT_NAME" ]]; then
-    error "Missing project name" "No input provided" "Enter a valid suffix like student1"
-fi
+while true; do
+    read -p "Enter project suffix: " PROJECT_NAME
+    run "Validating project name"
+
+    if [[ -n "$PROJECT_NAME" ]]; then
+        ok "Project name accepted"
+        break
+    else
+        fail "Project name cannot be empty"
+    fi
+done
 
 BASE_DIR="attendance_tracker_${PROJECT_NAME}"
 
+run "Checking project collision"
+
 if [[ -d "$BASE_DIR" ]]; then
-    error "Project exists" "Directory already exists" "Delete it or choose another name"
-fi
-
-# =========================
-# CLEANUP ON CTRL + C
-# =========================
-cleanup() {
-    echo ""
-    echo -e "${YELLOW}⚠ Interrupt detected... creating backup${NC}"
-
-    ARCHIVE_NAME="${BASE_DIR}_archive"
-
-    if [[ -d "$BASE_DIR" ]]; then
-        tar -czf "${ARCHIVE_NAME}.tar.gz" "$BASE_DIR" >/dev/null 2>&1
-
-        if [[ $? -eq 0 ]]; then
-            rm -rf "$BASE_DIR"
-            success "Backup created: ${ARCHIVE_NAME}.tar.gz"
-            success "Cleanup completed"
-        else
-            error "Backup failed" "tar error" "Check disk space"
-        fi
-    fi
-
+    fail "Directory already exists"
     exit 1
-}
-
-trap cleanup SIGINT
-
-# =========================
-# ENVIRONMENT CHECK
-# =========================
-echo ""
-echo -e "${BLUE}[1/5] ENVIRONMENT CHECK${NC}"
-
-if ! python3 --version >/dev/null 2>&1; then
-    error "Python3 missing" "python3 not installed" "Install Python3 first"
+else
+    ok "No conflicts found"
 fi
 
-success "Python3 detected"
-
 # =========================
-# STRUCTURE CREATION
+# ENV CHECK
 # =========================
-echo ""
-echo -e "${BLUE}[2/5] CREATING STRUCTURE${NC}"
+step "ENVIRONMENT CHECK"
 
-mkdir -p "$BASE_DIR/Helpers" "$BASE_DIR/reports"
-if [[ $? -ne 0 ]]; then
-    error "Folder creation failed" "Permission denied or invalid path" "Try different directory"
+run "Checking Python3 installation"
+if python3 --version >/dev/null 2>&1; then
+    ok "Python3 detected"
+else
+    fail "Python3 missing"
+    exit 1
 fi
 
-success "Project structure created"
+# =========================
+# DIRECTORY CREATION
+# =========================
+step "PROJECT STRUCTURE CREATION"
+
+run "Creating base directory"
+mkdir -p "$BASE_DIR"
+ok "Base directory created"
+
+run "Creating Helpers folder"
+mkdir -p "$BASE_DIR/Helpers"
+ok "Helpers created"
+
+run "Creating reports folder"
+mkdir -p "$BASE_DIR/reports"
+ok "Reports created"
 
 # =========================
 # FILE GENERATION
 # =========================
-echo ""
-echo -e "${BLUE}[3/5] GENERATING FILES${NC}"
+step "FILE GENERATION"
 
+run "Writing assets.csv"
 cat <<CSV > "$BASE_DIR/Helpers/assets.csv"
 Email,Names,Attendance Count,Absence Count
 alice@example.com,Alice Johnson,14,1
@@ -117,7 +103,9 @@ bob@example.com,Bob Smith,7,8
 charlie@example.com,Charlie Davis,4,11
 diana@example.com,Diana Prince,15,0
 CSV
+ok "assets.csv created"
 
+run "Writing config.json"
 cat <<JSON > "$BASE_DIR/Helpers/config.json"
 {
   "thresholds": {
@@ -128,81 +116,129 @@ cat <<JSON > "$BASE_DIR/Helpers/config.json"
   "total_sessions": 15
 }
 JSON
+ok "config.json created"
 
+run "Writing Python engine"
 cat <<'PY' > "$BASE_DIR/attendance_checker.py"
-import csv
-import json
-import os
+import csv, json, os
 from datetime import datetime
 
-def run_attendance_check():
-
-    with open('Helpers/config.json', 'r') as f:
+def run():
+    with open('Helpers/config.json') as f:
         config = json.load(f)
 
+    print("Loading configuration...")
+
     if os.path.exists('reports/reports.log'):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        os.rename(
-            'reports/reports.log',
-            f'reports/reports_{timestamp}.log.archive'
-        )
+        print("Archiving old logs...")
+        os.rename('reports/reports.log',
+                  f'reports/reports_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
 
-    with open('Helpers/assets.csv', 'r') as f, open('reports/reports.log', 'w') as log:
+    print("Processing attendance data...")
+
+    with open('Helpers/assets.csv') as f, open('reports/reports.log', 'w') as log:
         reader = csv.DictReader(f)
-        total = config['total_sessions']
-
-        log.write(f"--- Attendance Report {datetime.now()} ---\n")
 
         for row in reader:
-            name = row['Names']
-            email = row['Email']
-            attended = int(row['Attendance Count'])
+            pct = (int(row['Attendance Count']) / config['total_sessions']) * 100
 
-            pct = (attended / total) * 100
+            print(f"Checking {row['Names']} -> {pct:.1f}%")
 
-            message = ""
-
+            msg = ""
             if pct < config['thresholds']['failure']:
-                message = f"URGENT: {name} FAIL RISK ({pct:.1f}%)"
+                msg = f"URGENT: {row['Names']}"
             elif pct < config['thresholds']['warning']:
-                message = f"WARNING: {name} LOW ATTENDANCE ({pct:.1f}%)"
+                msg = f"WARNING: {row['Names']}"
 
-            if message:
-                if config['run_mode'] == "live":
-                    log.write(f"[{datetime.now()}] {email}: {message}\n")
-                    print(f"Logged: {name}")
-                else:
-                    print(f"[DRY RUN] {email}: {message}")
+            if msg:
+                log.write(msg + "\n")
+
+    print("Report generation complete")
 
 if __name__ == "__main__":
-    run_attendance_check()
+    run()
 PY
 
-success "All project files created"
-
+ok "attendance_checker.py created"
 # =========================
-# CONFIG UPDATE
+# CTRL + C TRAP SYSTEM
 # =========================
-echo ""
-echo -e "${BLUE}[4/5] CONFIGURATION${NC}"
+cleanup() {
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}⚠ INTERRUPT DETECTED (CTRL + C)${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
-read -p "Warning threshold (default 75): " WARNING
-read -p "Failure threshold (default 50): " FAILURE
+    run "Starting safe shutdown procedure"
 
-if [[ -z "$WARNING" ]]; then WARNING=75; fi
-if [[ -z "$FAILURE" ]]; then FAILURE=50; fi
+    if [[ -d "$BASE_DIR" ]]; then
+        ok "Project directory detected"
 
-if ! [[ "$WARNING" =~ ^[0-9]+$ ]]; then
-    error "Invalid warning" "Not numeric" "Enter 0-100"
-fi
+        ARCHIVE_NAME="${BASE_DIR}_archive"
 
-if ! [[ "$FAILURE" =~ ^[0-9]+$ ]]; then
-    error "Invalid failure" "Not numeric" "Enter 0-100"
-fi
+        run "Creating backup archive"
+        tar -czf "${ARCHIVE_NAME}.tar.gz" "$BASE_DIR" >/dev/null 2>&1
 
-if (( FAILURE >= WARNING )); then
-    error "Logic error" "Failure must be less than warning" "Example: 50 < 75"
-fi
+        if [[ $? -eq 0 ]]; then
+            ok "Backup successful: ${ARCHIVE_NAME}.tar.gz"
+        else
+            fail "Backup failed"
+        fi
+
+        run "Cleaning workspace"
+        rm -rf "$BASE_DIR"
+        ok "Temporary files removed"
+
+    else
+        warn "No project directory found"
+    fi
+
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN} SAFE EXIT COMPLETED${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+
+    exit 0
+}
+
+trap cleanup SIGINT
+# =========================
+# CONFIGURATION
+# =========================
+step "CONFIGURATION SETUP"
+
+while true; do
+    read -p "Warning threshold (0-100): " WARNING
+    run "Validating warning threshold"
+
+    if [[ "$WARNING" =~ ^[0-9]+$ ]] && (( WARNING >= 0 && WARNING <= 100 )); then
+        ok "Warning accepted"
+        break
+    else
+        fail "Invalid warning value"
+    fi
+done
+
+while true; do
+    read -p "Failure threshold (0-100): " FAILURE
+    run "Validating failure threshold"
+
+    if [[ "$FAILURE" =~ ^[0-9]+$ ]] && (( FAILURE >= 0 && FAILURE <= 100 )); then
+
+        if (( FAILURE < WARNING )); then
+            ok "Failure accepted"
+            break
+        else
+            warn "Failure must be less than warning ($WARNING)"
+        fi
+
+    else
+        fail "Invalid failure value"
+    fi
+done
+
+run "Updating configuration file"
 
 JSON_FILE="$BASE_DIR/Helpers/config.json"
 
@@ -214,46 +250,41 @@ else
     sed -i "s/\"failure\": [0-9]*/\"failure\": $FAILURE/" "$JSON_FILE"
 fi
 
-success "Configuration updated"
+ok "Configuration updated"
 
 # =========================
-# VALIDATION
+# FINAL VALIDATION
 # =========================
+step "FINAL VALIDATION"
+
+run "Checking file integrity"
+
+for file in \
+"$BASE_DIR/Helpers/assets.csv" \
+"$BASE_DIR/Helpers/config.json" \
+"$BASE_DIR/attendance_checker.py"
+do
+    if [[ -f "$file" ]]; then
+        ok "Found $(basename $file)"
+    else
+        fail "Missing $(basename $file)"
+    fi
+done
+
+# =========================
+# SUCCESS
+# =========================
+step "COMPLETION"
+
+ok "Project successfully generated"
+
 echo ""
-echo -e "${BLUE}[5/5] VALIDATION${NC}"
-
-if [[ ! -f "$BASE_DIR/attendance_checker.py" ]]; then
-    error "Missing file" "attendance_checker.py not found" "Check generation step"
-fi
-
-if [[ ! -f "$BASE_DIR/Helpers/assets.csv" ]]; then
-    error "Missing file" "assets.csv not found" "Check generation step"
-fi
-
-if [[ ! -f "$BASE_DIR/Helpers/config.json" ]]; then
-    error "Missing file" "config.json not found" "Check generation step"
-fi
-
-if [[ ! -f "$BASE_DIR/reports/reports.log" ]]; then
-    error "Missing file" "reports.log not found" "Check generation step"
-fi
-
-success "Structure validated"
-
-# =========================
-# FINAL OUTPUT
-# =========================
+echo -e "${GREEN}SYSTEM READY 🚀${NC}"
 echo ""
-echo -e "${GREEN}======================================${NC}"
-echo -e "${GREEN}   PROJECT CREATED SUCCESSFULLY      ${NC}"
-echo -e "${GREEN}======================================${NC}"
-echo ""
-
-success "Setup complete"
-info "Location: $BASE_DIR"
-info "Run commands:"
+echo "Next steps:"
 echo "cd $BASE_DIR"
 echo "python3 attendance_checker.py"
-echo ""
 
-echo -e "${GREEN}SYSTEM READY 🚀${NC}"
+
+
+
