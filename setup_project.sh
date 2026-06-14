@@ -64,16 +64,35 @@ echo " ✅ Using thresholds -> Warning: $WARNING | Failure: $FAILURE"
 
 
 validate_number() {
+
   if ! [[ "$1" =~ ^[0-9]+$ ]]; then
-    echo " ❌ Error: threshold must be a numeric value"
+    echo "❌ Error: threshold must be a numeric value"
     exit 1
   fi
 }
 
-echo " 🔍 Validating inputs..."
+
+validate_range() {
+  local name=$1
+  local value=$2
+  if (( value < 0 || value > 100 )); then
+    echo "❌ Error: $name must be between 0 and 100"
+    exit 1
+  fi
+}
+
+
+echo " 🔄 Validating inputs wait a second..."
 
 validate_number "$WARNING"
 validate_number "$FAILURE"
 
-echo " ✅ Inputs validated successfully"
+validate_range "Warning threshold" "$WARNING"
+validate_range "Failure threshold" "$FAILURE"
 
+if (( FAILURE >= WARNING )); then
+  echo "❌ Error: Failure threshold must be lower than Warning threshold"
+  exit 1
+fi
+
+echo "✅ Inputs validated successfully"
