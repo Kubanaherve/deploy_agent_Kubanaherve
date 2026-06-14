@@ -51,3 +51,14 @@ JSON
 touch "$BASE_DIR/reports/reports.log"
 
 echo "✅  Core files created successfully ..."
+
+echo "⚙️  Configuring attendance thresholds..."
+
+read -p "Enter warning threshold (Note that default is 75): " WARNING
+read -p "Enter failure threshold (Note that default is 50): " FAILURE
+
+WARNING=${WARNING:-75}
+FAILURE=${FAILURE:-50}
+
+echo " ✅ Using thresholds -> Warning: $WARNING | Failure: $FAILURE"
+
