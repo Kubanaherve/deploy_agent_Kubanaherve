@@ -286,5 +286,5 @@ echo "cd $BASE_DIR"
 echo "python3 attendance_checker.py"
 
 
-
+echo "Creaated & Designed by  Herve Friend KUBANA 🎊"
 
